@@ -23,7 +23,6 @@ simple-lms/
 ├── .env.example              # Template environment variables
 ├── .gitignore
 ├── config/
-│   ├── __init__.py
 │   ├── settings.py           # Django settings + DATABASE_URL config
 │   ├── urls.py               # URL routing
 │   └── wsgi.py               # WSGI entry point
