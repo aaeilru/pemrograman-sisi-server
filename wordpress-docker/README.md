@@ -25,7 +25,8 @@ wordpress-docker/
     ├── wordpress-installation.png
     ├── wordpress-dashboard.png
     ├── docker-ps.png
-    └── redis-ping.png
+    ├── redis-ping.png
+    └── redis-connected.png
 ```
 
 ## 🛠️ Tech Stack
@@ -81,8 +82,6 @@ docker-compose down -v
 
 Lihat file `.env.example` untuk semua konfigurasi yang tersedia.
 
-Variabel utama:
-
 | Variable | Deskripsi |
 |----------|-----------|
 | `MYSQL_ROOT_PASSWORD` | Password root MySQL |
@@ -96,26 +95,50 @@ Variabel utama:
 
 ### 1. Install Plugin
 
-Di WordPress Dashboard → **Plugins → Add New** → cari **Redis Object Cache** → Install → Activate
+Di WordPress Dashboard → **Plugins → Add New** → cari **Redis Object Cache** → **Install Now** → **Activate**
 
-### 2. Konfigurasi wp-config.php
+### 2. Tambahkan Konfigurasi ke wp-config.php
+
+Masuk ke dalam container WordPress:
 
 ```bash
-# Masuk ke container WordPress
 docker-compose exec wordpress bash
-
-# Edit wp-config.php
-nano /var/www/html/wp-config.php
 ```
 
-Tambahkan sebelum `/* That's all, stop editing! */`:
+Jalankan perintah `sed` berikut untuk menambahkan konfigurasi Redis secara otomatis:
 
-```php
-define('WP_REDIS_HOST', 'redis');
-define('WP_REDIS_PORT', 6379);
+```bash
+sed -i "s|/\* That's all, stop editing! Happy publishing. \*/|define('WP_REDIS_HOST', 'redis');\ndefine('WP_REDIS_PORT', 6379);\n\n/* That's all, stop editing! Happy publishing. */|" /var/www/html/wp-config.php
 ```
 
-### 3. Verifikasi Redis
+Verifikasi konfigurasi sudah tersimpan:
+
+```bash
+grep -n "REDIS" /var/www/html/wp-config.php
+```
+
+Harus muncul:
+```
+xxx: define('WP_REDIS_HOST', 'redis');
+xxx: define('WP_REDIS_PORT', 6379);
+```
+
+Keluar dari container:
+
+```bash
+exit
+```
+
+### 3. Aktifkan Object Cache
+
+Buka browser → **Settings → Redis** → klik **Enable Object Cache**
+
+Status akan berubah menjadi:
+- ✅ Status: **Connected**
+- ✅ Filesystem: **Writeable**
+- ✅ Redis: **Reachable**
+
+### 4. Verifikasi Redis via CLI
 
 ```bash
 # Masuk ke Redis CLI
@@ -125,8 +148,11 @@ docker-compose exec redis redis-cli
 127.0.0.1:6379> PING
 PONG
 
-# Lihat keys yang tersimpan
+# Lihat cache keys yang tersimpan
 127.0.0.1:6379> KEYS *
+
+# Keluar
+127.0.0.1:6379> exit
 ```
 
 ## 🧪 Testing & Verifikasi
@@ -150,13 +176,20 @@ docker-compose exec redis redis-cli
 
 ## 📸 Screenshots
 
-| # | Screenshot | Deskripsi |
-|---|-----------|-----------|
-| 1 | [WordPress Installation](./screenshots/wordpress-installation.png) 
-([Versi 1](./screenshots/wordpress-installation-1.png)) | Halaman instalasi WordPress pertama kali |
-| 2 | [WordPress Dashboard](./screenshots/wordpress-dashboard.png) | Dashboard WordPress setelah instalasi |
-| 3 | [Docker PS](./screenshots/docker-ps.png) | Output `docker ps` menunjukkan 3 container running |
-| 4 | [Redis Ping](./screenshots/redis-ping.png) | Redis CLI PING test menghasilkan PONG |
+### WordPress Installation Page
+![WordPress Installation](./screenshots/wordpress-installation.png)
+
+### WordPress Dashboard
+![WordPress Dashboard](./screenshots/wordpress-dashboard.png)
+
+### Docker PS — 3 Containers Running
+![Docker PS](./screenshots/docker-ps.png)
+
+### Redis CLI — PING Test
+![Redis Ping](./screenshots/redis-ping.png)
+
+### Redis Object Cache — Connected
+![Redis Connected](./screenshots/redis-connected.png)
 
 ## ❓ Pertanyaan & Jawaban
 
@@ -181,6 +214,7 @@ Redis berperan sebagai object cache in-memory yang menyimpan hasil query databas
 | Data hilang setelah restart | Pastikan volumes terdefinisi, jangan gunakan `docker-compose down -v` |
 | Port 8000 sudah dipakai | Ubah ke `"8080:80"` di `docker-compose.yml`, akses di `localhost:8080` |
 | Container langsung exit | Jalankan `docker-compose logs [nama_service]` untuk debug |
+| Redis Unreachable | Pastikan `define('WP_REDIS_HOST', 'redis')` sudah ada di `wp-config.php` |
 | Error `mysql:5.7` di Apple Silicon | Ganti ke `mysql:8.0` — mysql:5.7 tidak support ARM64 |
 
 ---
